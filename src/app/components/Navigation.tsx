@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { Search, Menu, X, ChevronDown } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 
 const navLinks = [
   { label: 'Home', href: '/' },
@@ -16,6 +18,18 @@ export function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <nav
@@ -78,24 +92,51 @@ export function Navigation() {
               <kbd className="ml-2 px-1.5 py-0.5 text-xs rounded" style={{ background: 'rgba(255,255,255,0.1)', fontFamily: 'var(--font-mono)' }}>⌘K</kbd>
             </button>
 
-            <Link
-              to="/login"
-              className="hidden md:block text-sm px-4 py-1.5 rounded transition-colors"
-              style={{ color: 'rgba(243,242,237,0.7)' }}
-            >
-              Sign In
-            </Link>
+            {isAuthenticated && user ? (
+              <>
+                <span className="hidden lg:inline text-xs font-mono text-white/50 px-2 select-none truncate max-w-[120px]" title={user.email}>
+                  {user.email}
+                </span>
+                <Link
+                  to="/atlas"
+                  className="hidden md:flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-medium transition-all"
+                  style={{
+                    background: 'var(--meridian-gold)',
+                    color: 'var(--abyss-ink)',
+                  }}
+                >
+                  Workspace
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="hidden md:block text-sm px-4 py-1.5 rounded transition-colors hover:text-red-400 cursor-pointer"
+                  style={{ color: 'rgba(243,242,237,0.7)' }}
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="hidden md:block text-sm px-4 py-1.5 rounded transition-colors"
+                  style={{ color: 'rgba(243,242,237,0.7)' }}
+                >
+                  Sign In
+                </Link>
 
-            <Link
-              to="/login"
-              className="hidden md:flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-medium transition-all"
-              style={{
-                background: 'var(--meridian-gold)',
-                color: 'var(--abyss-ink)',
-              }}
-            >
-              Start Routing
-            </Link>
+                <Link
+                  to="/login"
+                  className="hidden md:flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-medium transition-all"
+                  style={{
+                    background: 'var(--meridian-gold)',
+                    color: 'var(--abyss-ink)',
+                  }}
+                >
+                  Start Routing
+                </Link>
+              </>
+            )}
 
             <button
               className="md:hidden p-2 rounded"
@@ -143,14 +184,49 @@ export function Navigation() {
               </Link>
             ))}
             <div className="mt-4 pt-4 border-t flex flex-col gap-2" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-              <Link to="/login" className="text-sm px-2 py-2" style={{ color: 'rgba(243,242,237,0.7)' }}>Sign In</Link>
-              <Link
-                to="/login"
-                className="px-4 py-2 rounded text-sm font-medium text-center"
-                style={{ background: 'var(--meridian-gold)', color: 'var(--abyss-ink)' }}
-              >
-                Start Routing
-              </Link>
+              {isAuthenticated && user ? (
+                <>
+                  <div className="px-2 py-1.5 text-xs font-mono text-white/50 truncate">
+                    {user.email}
+                  </div>
+                  <Link
+                    to="/atlas"
+                    className="px-4 py-2 rounded text-sm font-medium text-center"
+                    style={{ background: 'var(--meridian-gold)', color: 'var(--abyss-ink)' }}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Go to Workspace
+                  </Link>
+                  <button
+                    onClick={() => {
+                      handleSignOut();
+                      setMenuOpen(false);
+                    }}
+                    className="text-left text-sm px-2 py-2 text-red-400 cursor-pointer"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="text-sm px-2 py-2"
+                    style={{ color: 'rgba(243,242,237,0.7)' }}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="px-4 py-2 rounded text-sm font-medium text-center"
+                    style={{ background: 'var(--meridian-gold)', color: 'var(--abyss-ink)' }}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Start Routing
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}

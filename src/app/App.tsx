@@ -1,7 +1,11 @@
 import { RouterProvider } from 'react-router';
 import { router } from './routes';
-import ErrorAnalyzer from './pages/ErrorAnalyzer';
+import { AuthProvider } from './context/AuthContext';
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  );
 }
