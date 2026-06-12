@@ -45,7 +45,7 @@ export function QuestionDetail() {
   
   // Hardware-Native Tabs
   // RTL, Constraints, Waveform, Telemetry, Atlas, Discussions
-  const [activeTab, setActiveTab] = useState<'atlas' | 'rtl' | 'constraints' | 'waveform' | 'telemetry' | 'discussion'>('atlas');
+  const [activeTab, setActiveTab] = useState<'atlas' | 'rtl' | 'constraints' | 'waveform' | 'telemetry' | 'discussion'>('discussion');
   
   // Interactive Answering state
   const [newAnswerText, setNewAnswerText] = useState('');
@@ -283,12 +283,12 @@ export function QuestionDetail() {
             {/* Hardware-Native Tabs Switcher */}
             <div className="flex flex-wrap border-b border-gray-200" style={{ borderColor: 'var(--stone-ridge)' }}>
               {[
+                { id: 'discussion', label: `Discussions (${question.answers.length})`, icon: MessageSquare },
                 { id: 'atlas', label: 'Atlas AI Diagnosis', icon: Cpu },
                 { id: 'rtl', label: 'RTL Sandbox', icon: Code },
                 { id: 'constraints', label: 'Timing Constraints', icon: FileText },
                 { id: 'waveform', label: 'Waveform Viewer', icon: LineChart },
-                { id: 'telemetry', label: 'Telemetry', icon: Activity },
-                { id: 'discussion', label: `Discussions (${question.answers.length})`, icon: MessageSquare }
+                { id: 'telemetry', label: 'Telemetry', icon: Activity }
               ].map(tab => {
                 const Icon = tab.icon;
                 return (

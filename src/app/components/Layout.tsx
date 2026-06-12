@@ -7,7 +7,6 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { BrandedBackground } from './BrandedBackground';
 import { ScrollTrack } from './ScrollTrack';
-import { Marquee } from './Marquee';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -348,7 +347,6 @@ export function Layout() {
 
       {!isLoginPage && <Navigation />}
       {!isLoginPage && <div className="h-16 shrink-0" />}
-      <Marquee />
       <main className="flex-1 flex flex-col min-h-0">
         <Outlet />
       </main>
