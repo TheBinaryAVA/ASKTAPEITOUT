@@ -24,11 +24,13 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { 
-  getQuestions, 
+  fetchQuestions, 
   updateQuestionVotes, 
-  addQuestion, 
+  createRemoteQuestion, 
+  deleteQuestion,
   Question 
 } from '../data/questionsData';
+import { useAuth } from '../context/AuthContext';
 
 const weeklyData = [
   { day: 'Mon', failures: 42, fixed: 38 },
@@ -98,6 +100,7 @@ endmodule`;
 
 export function CommunityIntelligence() {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [timeRange, setTimeRange] = useState('7d');
   
   // Tab Switcher between Q&A Forum and Stats Dashboard
@@ -105,6 +108,8 @@ export function CommunityIntelligence() {
   
   // Q&A State
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+  const [questionError, setQuestionError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'votes' | 'unanswered'>('newest');
   
@@ -125,6 +130,7 @@ export function CommunityIntelligence() {
   const [newLanguage, setNewLanguage] = useState<'SystemVerilog' | 'VHDL' | 'Chisel' | 'Tcl/SDC' | 'SPICE'>('SystemVerilog');
   const [newTool, setNewTool] = useState('OpenROAD v2.1');
   const [newNode, setNewNode] = useState<'Sky130' | 'GF180' | 'TSMC 5nm' | 'TSMC 28nm' | 'Generic 28nm'>('Sky130');
+  const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
   
   // De-IP Sanitizer state
   const [codeToSanitize, setCodeToSanitize] = useState(defaultProprietaryCode);
@@ -133,10 +139,30 @@ export function CommunityIntelligence() {
   const [sanitizedCode, setSanitizedCode] = useState<string | null>(null);
 
   useEffect(() => {
-    setQuestions(getQuestions());
+    const loadQuestions = async () => {
+      try {
+        setIsLoadingQuestions(true);
+        setQuestionError(null);
+        const loadedQuestions = await fetchQuestions();
+        setQuestions(loadedQuestions);
+      } catch (error) {
+        console.error('Failed to load questions:', error);
+        setQuestionError('Could not load community questions right now.');
+      } finally {
+        setIsLoadingQuestions(false);
+      }
+    };
+
+    loadQuestions();
   }, []);
 
-  const handleUpvote = (id: number, e: React.MouseEvent) => {
+  useEffect(() => {
+    if (user) {
+      setNewAuthor(user.user_metadata?.full_name || user.email?.split('@')[0] || 'Guest Engineer');
+    }
+  }, [user]);
+
+  const handleUpvote = (id: string | number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const updated = updateQuestionVotes(id, 1);
@@ -168,34 +194,56 @@ export function CommunityIntelligence() {
     }
   };
 
-  const handleAskQuestionSubmit = (e: React.FormEvent) => {
+  const handleAskQuestionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim() || !newBody.trim()) return;
+    if (!newTitle.trim() || !newBody.trim() || isSubmittingQuestion) return;
+    if (!isAuthenticated || !user) {
+      navigate('/login');
+      return;
+    }
 
-    const added = addQuestion(
-      newTitle.trim(),
-      newBody.trim(),
-      newAuthor.trim() || 'Anonymous Engineer',
-      [newDomain, newNode, newLanguage],
-      newSeverity,
-      newDomain,
-      newLanguage,
-      newTool || 'Generic',
-      newNode,
-      sanitizedCodeResult
-    );
+    try {
+      setIsSubmittingQuestion(true);
+      setQuestionError(null);
 
-    // Refresh questions list
-    setQuestions(getQuestions());
+      const displayName =
+        newAuthor.trim() ||
+        user.user_metadata?.full_name ||
+        user.email?.split('@')[0] ||
+        'Anonymous Engineer';
+
+      const added = await createRemoteQuestion({
+        userId: user.id,
+        userName: displayName,
+        title: newTitle.trim(),
+        body: newBody.trim(),
+        tags: [newDomain, newNode, newLanguage],
+        severity: newSeverity,
+        domain: newDomain,
+        language: newLanguage,
+        toolVersion: newTool || 'Generic',
+        node: newNode,
+        verilogCode: sanitizedCode || undefined,
+      });
+
+      const refreshedQuestions = await fetchQuestions();
+      setQuestions(refreshedQuestions);
     
-    // Reset form & close modal
-    setNewTitle('');
-    setNewBody('');
-    setNewSeverity('Medium');
-    setShowAskModal(false);
+      // Reset form & close modal
+      setNewTitle('');
+      setNewBody('');
+      setNewSeverity('Medium');
+      setSanitizedCode(null);
+      setShowAskModal(false);
 
-    // Navigate to the newly created question
-    navigate(`/questions/${added.id}`);
+      // Navigate to the newly created question
+      navigate(`/questions/${added.id}`);
+    } catch (error) {
+      console.error('Failed to create question:', error);
+      setQuestionError('Could not post your question. Please check your Supabase setup and try again.');
+    } finally {
+      setIsSubmittingQuestion(false);
+    }
   };
 
   // Filter and sort questions list using strict 4D taxonomy
@@ -212,7 +260,7 @@ export function CommunityIntelligence() {
     })
     .sort((a, b) => {
       if (sortBy === 'newest') {
-        return b.id - a.id;
+        return String(b.id).localeCompare(String(a.id));
       }
       if (sortBy === 'votes') {
         return b.votes - a.votes;
@@ -221,7 +269,7 @@ export function CommunityIntelligence() {
         if (a.solved !== b.solved) {
           return a.solved ? 1 : -1;
         }
-        return b.id - a.id;
+        return String(b.id).localeCompare(String(a.id));
       }
       return 0;
     });
@@ -299,6 +347,11 @@ export function CommunityIntelligence() {
               
               {/* Search, Filter, Sort Controls */}
               <div className="bg-white rounded-xl border p-5 space-y-4 shadow-sm" style={{ borderColor: 'var(--stone-ridge)' }}>
+                {questionError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {questionError}
+                  </div>
+                )}
                 {/* Search Bar */}
                 <div className="relative">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -383,7 +436,9 @@ export function CommunityIntelligence() {
 
               {/* Stack Overflow Style Questions List */}
               <div className="bg-white rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: 'var(--stone-ridge)' }}>
-                {filteredQuestions.length > 0 ? (
+                {isLoadingQuestions ? (
+                  <div className="p-8 text-center text-sm text-gray-500">Loading questions...</div>
+                ) : filteredQuestions.length > 0 ? (
                   <div className="divide-y divide-gray-100">
                     {filteredQuestions.map(q => (
                       <div key={q.id} className="p-5 flex items-start gap-4 transition-all hover:bg-gray-50/40">
@@ -1006,10 +1061,11 @@ export function CommunityIntelligence() {
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmittingQuestion}
                   className="px-5 py-2 rounded-md text-sm font-bold text-white transition-all hover:scale-102 cursor-pointer shadow"
-                  style={{ background: 'var(--abyss-ink)' }}
+                  style={{ background: 'var(--abyss-ink)', opacity: isSubmittingQuestion ? 0.7 : 1 }}
                 >
-                  Post Your Question
+                  {isSubmittingQuestion ? 'Posting...' : 'Post Your Question'}
                 </button>
               </div>
             </form>

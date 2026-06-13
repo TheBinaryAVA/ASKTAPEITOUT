@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useNavigate } from 'react-router';
 import { 
   CheckCircle, 
   ThumbsUp, 
@@ -23,25 +23,34 @@ import {
   Activity,
   ZoomIn,
   ZoomOut,
-  Maximize2
+  Maximize2,
+  Trash2
 } from 'lucide-react';
 import { ConfidenceMeter } from '../components/ConfidenceMeter';
 import { StatusBadge } from '../components/StatusBadge';
 import { CodeViewer } from '../components/CodeViewer';
+import { useAuth } from '../context/AuthContext';
 import { 
+  fetchQuestionById,
   getQuestionById, 
   updateQuestionVotes, 
   addAnswerToQuestion, 
   verifyAnswerInQuestion,
+  deleteRemoteQuestion,
+  deleteLocalQuestion,
   Question, 
   Answer 
 } from '../data/questionsData';
 
 export function QuestionDetail() {
   const { slug } = useParams();
-  const questionId = parseInt(slug || '', 10);
+  const questionId = slug || '';
+  const navigate = useNavigate();
+  const { user } = useAuth();
   
   const [question, setQuestion] = useState<Question | null>(null);
+  const [isLoadingQuestion, setIsLoadingQuestion] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Hardware-Native Tabs
   // RTL, Constraints, Waveform, Telemetry, Atlas, Discussions
@@ -67,13 +76,33 @@ export function QuestionDetail() {
   const [measurementPoint, setMeasurementPoint] = useState<{ t1: number; t2: number } | null>(null);
 
   useEffect(() => {
-    if (!isNaN(questionId)) {
-      const q = getQuestionById(questionId);
-      if (q) {
-        setQuestion(q);
-        setSandboxCode(q.verilog || '');
+    const loadQuestion = async () => {
+      if (!questionId) {
+        setQuestion(null);
+        setIsLoadingQuestion(false);
+        return;
       }
-    }
+
+      setIsLoadingQuestion(true);
+      const localQuestion = getQuestionById(questionId);
+      if (localQuestion) {
+        setQuestion(localQuestion);
+        setSandboxCode(localQuestion.verilog || '');
+        setIsLoadingQuestion(false);
+        return;
+      }
+
+      const fetchedQuestion = await fetchQuestionById(questionId);
+      if (fetchedQuestion) {
+        setQuestion(fetchedQuestion);
+        setSandboxCode(fetchedQuestion.verilog || '');
+      } else {
+        setQuestion(null);
+      }
+      setIsLoadingQuestion(false);
+    };
+
+    loadQuestion();
   }, [questionId]);
 
   useEffect(() => {
@@ -81,6 +110,15 @@ export function QuestionDetail() {
       terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [synthesisLogs, isSynthesizing]);
+
+  if (isLoadingQuestion) {
+    return (
+      <div style={{ background: 'transparent', minHeight: '100vh', fontFamily: 'var(--font-ui)' }} className="flex flex-col items-center justify-center p-8">
+        <div className="w-8 h-8 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm text-gray-500">Loading question...</p>
+      </div>
+    );
+  }
 
   if (!question) {
     return (
@@ -132,6 +170,35 @@ export function QuestionDetail() {
 
     setNewAnswerText('');
     setIsSolutionInput(false);
+  };
+
+  const handleDeleteQuestion = async () => {
+    if (!question) return;
+    
+    // Confirm deletion
+    if (!window.confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      
+      // Check if it's a remote question (Supabase) or local
+      if (String(question.id).startsWith('supabase:')) {
+        // Delete remote question
+        await deleteRemoteQuestion(question.id);
+      } else {
+        // Delete local question
+        deleteLocalQuestion(question.id);
+      }
+      
+      // Redirect back to community page
+      navigate('/community');
+    } catch (error) {
+      console.error('Failed to delete question:', error);
+      alert('Failed to delete question. Please try again.');
+      setIsDeleting(false);
+    }
   };
 
   // Fork & Verify Sandbox Simulation
@@ -277,6 +344,19 @@ export function QuestionDetail() {
                 >
                   <ThumbsUp className="w-3.5 h-3.5 text-amber-500" /> Upvote ({question.votes})
                 </button>
+
+                {/* Delete Button - Only show for question author */}
+                {user && question.userId === user.id && (
+                  <button 
+                    onClick={handleDeleteQuestion}
+                    disabled={isDeleting}
+                    className="flex items-center gap-1 hover:text-red-500 transition-colors bg-white border px-2 py-1 rounded text-[11px] font-semibold cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ borderColor: 'var(--stone-ridge)', color: isDeleting ? '#999' : '#475569' }}
+                    title="Delete this question"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-500" /> {isDeleting ? 'Deleting...' : 'Delete'}
+                  </button>
+                )}
               </div>
             </div>
 
