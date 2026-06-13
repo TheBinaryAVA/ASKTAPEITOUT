@@ -14,6 +14,7 @@ import { OpenROADCookbook } from './pages/OpenROADCookbook';
 import { AtlasLanding } from './pages/AtlasLanding';
 import { Pricing } from './pages/Pricing';
 import { LoginSignup } from './pages/LoginSignup';
+import { Profile } from './pages/Profile';
 
 export const router = createBrowserRouter([
   {
@@ -34,6 +35,8 @@ export const router = createBrowserRouter([
       { path: 'atlas-platform', Component: AtlasLanding },
       { path: 'pricing', Component: Pricing },
       { path: 'login', Component: LoginSignup },
+      { path: 'profile', Component: Profile },
     ],
   },
 ]);
+

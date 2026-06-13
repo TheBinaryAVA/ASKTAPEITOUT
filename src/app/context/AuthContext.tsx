@@ -17,12 +17,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const checkAndSendWelcomeEmail = async (currentUser: User) => {
+      try {
+        const createdAt = new Date(currentUser.created_at).getTime();
+        const lastSignIn = currentUser.last_sign_in_at 
+          ? new Date(currentUser.last_sign_in_at).getTime() 
+          : new Date().getTime();
+        
+        const timeDiffMs = Math.abs(lastSignIn - createdAt);
+        console.log('Onboarding Check Log:', {
+          email: currentUser.email,
+          userCreatedAt: new Date(currentUser.created_at).toISOString(),
+          userLastSignInAt: currentUser.last_sign_in_at ? new Date(currentUser.last_sign_in_at).toISOString() : 'N/A',
+          timeDifferenceSeconds: timeDiffMs / 1000,
+          isNewThreshold24Hours: timeDiffMs < 86400000
+        });
+
+        // Increase threshold to 24 hours (86400000 ms) for robust testing
+        const isNew = timeDiffMs < 86400000;
+        const storageKey = `welcome_email_sent_${currentUser.id}`;
+
+        if (isNew && !localStorage.getItem(storageKey)) {
+          localStorage.setItem(storageKey, 'true');
+          console.log('New user signup detected! Sending welcome email via Edge Function...');
+          const { error } = await supabase.functions.invoke('send-welcome-email', {
+            body: {
+              record: {
+                email: currentUser.email,
+                raw_user_meta_data: {
+                  full_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0]
+                }
+              }
+            }
+          });
+          if (error) throw error;
+          console.log('Welcome email edge function triggered successfully.');
+        }
+      } catch (err) {
+        console.error('Failed to trigger welcome email edge function:', err);
+      }
+    };
+
+
     // 1. Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
-        setUser(session?.user ?? null);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        if (currentUser) {
+          checkAndSendWelcomeEmail(currentUser);
+        }
       } catch (error) {
         console.error('Error fetching initial session:', error);
       } finally {
@@ -36,10 +82,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, currentSession) => {
         setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        const currentUser = currentSession?.user ?? null;
+        setUser(currentUser);
         setLoading(false);
+        if (currentUser) {
+          checkAndSendWelcomeEmail(currentUser);
+        }
       }
     );
+
 
     return () => {
       subscription.unsubscribe();

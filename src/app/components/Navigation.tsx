@@ -93,13 +93,10 @@ export function Navigation() {
             </button>
 
             {isAuthenticated && user ? (
-              <>
-                <span className="hidden lg:inline text-xs font-mono text-white/50 px-2 select-none truncate max-w-[120px]" title={user.email}>
-                  {user.email}
-                </span>
+              <div className="flex items-center gap-4">
                 <Link
                   to="/atlas"
-                  className="hidden md:flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-medium transition-all"
+                  className="hidden md:flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-medium transition-all hover:opacity-90"
                   style={{
                     background: 'var(--meridian-gold)',
                     color: 'var(--abyss-ink)',
@@ -107,14 +104,39 @@ export function Navigation() {
                 >
                   Workspace
                 </Link>
+                {/* Profile Picture Link */}
+                <Link
+                  to="/profile"
+                  className="shrink-0 flex items-center justify-center relative group"
+                  title="View Profile"
+                >
+                  {user.user_metadata?.avatar_url ? (
+                    <img 
+                      src={user.user_metadata.avatar_url} 
+                      alt="Profile" 
+                      className="w-8 h-8 rounded-full border border-[#D4AF37]/50 shadow-[0_0_10px_rgba(212,175,55,0.2)] object-cover group-hover:border-[#D4AF37] transition-all"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div 
+                      className="w-8 h-8 rounded-full border border-[#D4AF37]/45 flex items-center justify-center font-mono text-xs font-bold text-[#D4AF37] group-hover:border-[#D4AF37] transition-all"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(15, 23, 42, 0.4) 100%)'
+                      }}
+                    >
+                      {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
+                    </div>
+                  )}
+                </Link>
                 <button
                   onClick={handleSignOut}
-                  className="hidden md:block text-sm px-4 py-1.5 rounded transition-colors hover:text-red-400 cursor-pointer"
+                  className="hidden md:block text-sm px-3 py-1.5 rounded transition-colors hover:text-red-400 cursor-pointer"
                   style={{ color: 'rgba(243,242,237,0.7)' }}
                 >
                   Sign Out
                 </button>
-              </>
+              </div>
+
             ) : (
               <>
                 <Link
@@ -186,9 +208,40 @@ export function Navigation() {
             <div className="mt-4 pt-4 border-t flex flex-col gap-2" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
               {isAuthenticated && user ? (
                 <>
-                  <div className="px-2 py-1.5 text-xs font-mono text-white/50 truncate">
-                    {user.email}
+                  <div className="flex items-center gap-3 px-2 py-1.5 border-b pb-3 mb-1" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    {user.user_metadata?.avatar_url ? (
+                      <img 
+                        src={user.user_metadata.avatar_url} 
+                        alt="Profile" 
+                        className="w-9 h-9 rounded-full border border-[#D4AF37]/50 object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div 
+                        className="w-9 h-9 rounded-full border border-[#D4AF37]/45 flex items-center justify-center font-mono text-xs font-bold text-[#D4AF37]"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(15, 23, 42, 0.4) 100%)'
+                        }}
+                      >
+                        {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-white text-xs font-semibold truncate max-w-[150px]">
+                        {user.user_metadata?.full_name || 'Member'}
+                      </span>
+                      <span className="text-[10px] font-mono text-white/40 truncate max-w-[150px]">
+                        {user.email}
+                      </span>
+                    </div>
                   </div>
+                  <Link
+                    to="/profile"
+                    className="text-left text-sm px-2 py-2 text-white/70 hover:text-white"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    My Profile
+                  </Link>
                   <Link
                     to="/atlas"
                     className="px-4 py-2 rounded text-sm font-medium text-center"
@@ -207,6 +260,7 @@ export function Navigation() {
                     Sign Out
                   </button>
                 </>
+
               ) : (
                 <>
                   <Link
