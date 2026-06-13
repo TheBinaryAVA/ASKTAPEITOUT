@@ -15,6 +15,7 @@ import { AtlasLanding } from './pages/AtlasLanding';
 import { Pricing } from './pages/Pricing';
 import { LoginSignup } from './pages/LoginSignup';
 import { Profile } from './pages/Profile';
+import { ResetPassword } from './pages/ResetPassword';
 
 export const router = createBrowserRouter([
   {
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
       { path: 'pricing', Component: Pricing },
       { path: 'login', Component: LoginSignup },
       { path: 'profile', Component: Profile },
+      { path: 'reset-password', Component: ResetPassword },
     ],
   },
 ]);
