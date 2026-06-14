@@ -388,6 +388,8 @@ endmodule`,
   }
 ];
 
+
+
 const LOCAL_STORAGE_KEY = 'ask_tapeitout_questions';
 const REMOTE_QUESTION_PREFIX = 'supabase:';
 
@@ -421,6 +423,10 @@ function isRemoteQuestionId(id: string | number): boolean {
 
 function getRemoteQuestionId(id: string | number): string {
   return normalizeId(id).replace(REMOTE_QUESTION_PREFIX, '');
+}
+
+function coerceRemoteQuestionId(id: string): string | number {
+  return /^\d+$/.test(id) ? Number(id) : id;
 }
 
 function buildRemoteQuestionId(id: string): string {
@@ -779,19 +785,32 @@ export function deleteLocalQuestion(id: string | number): Question[] {
   return updated;
 }
 
-export async function deleteRemoteQuestion(id: string | number): Promise<void> {
+export async function deleteRemoteQuestion(
+  id: string | number,
+  currentUserId?: string
+): Promise<void> {
   if (!isRemoteQuestionId(id)) {
     throw new Error('Can only delete remote questions');
   }
 
-  const remoteId = getRemoteQuestionId(id);
-  const { error } = await supabase
+  const remoteId = coerceRemoteQuestionId(getRemoteQuestionId(id));
+  let query = supabase
     .from('questions')
     .delete()
     .eq('id', remoteId);
 
+  if (currentUserId) {
+    query = query.eq('user_id', currentUserId);
+  }
+
+  const { data, error } = await query.select('id');
+
   if (error) {
     throw error;
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('Delete was not permitted or the question no longer exists.');
   }
 
   // Also remove from local cache

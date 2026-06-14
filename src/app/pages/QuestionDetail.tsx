@@ -186,7 +186,7 @@ export function QuestionDetail() {
       // Check if it's a remote question (Supabase) or local
       if (String(question.id).startsWith('supabase:')) {
         // Delete remote question
-        await deleteRemoteQuestion(question.id);
+        await deleteRemoteQuestion(question.id, user?.id);
       } else {
         // Delete local question
         deleteLocalQuestion(question.id);
@@ -196,7 +196,8 @@ export function QuestionDetail() {
       navigate('/community');
     } catch (error) {
       console.error('Failed to delete question:', error);
-      alert('Failed to delete question. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to delete question. Please try again.';
+      alert(message);
       setIsDeleting(false);
     }
   };
